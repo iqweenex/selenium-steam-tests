@@ -13,9 +13,10 @@ class TestSteamStore:
 
     def test_page_open(self, driver, wait):
         driver.get(self.BASE_URL)
-        wait.until(lambda d: "Steam" in d.title)
-
-        assert "steam" in driver.current_url
+        wait.until(
+            EC.url_contains("store.steampowered.com")
+        )
+        assert "Steam" in driver.title, f"Title: {driver.title}"
         print("Страница загружена")
 
     def test_search_field_exist(self, driver, wait):
