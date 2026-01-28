@@ -8,67 +8,68 @@ from selenium.webdriver.support import expected_conditions as EC
 from faker import Faker
 
 
-
 class TestSteamStore:
     BASE_URL = "https://store.steampowered.com"
 
-    def _generate_random_login_password(self):
-        faker = Faker()
-        return faker.user_name(), faker.password()
-
-    def test_page_open(self, driver):
+    def test_page_open(self, driver, wait):
         driver.get(self.BASE_URL)
+        wait.until(lambda d: "Steam" in d.title)
 
-        assert "Steam" in driver.title
-
-        assert "store.steampowered.com" in driver.current_url
-
+        assert "steam" in driver.current_url
         print("Страница загружена")
 
-    def test_search_field_exist(self, driver):
+    def test_search_field_exist(self, driver, wait):
         driver.get(self.BASE_URL)
-        search_field = driver.find_element(By.CSS_SELECTOR, "form[role='search']")
-        assert search_field.is_displayed()
+        search_field = wait.until(EC.visibility_of_element_located(
+            (By.CSS_SELECTOR, "form[role='search']")
+        ))
         print(f"Поле поиска отображается")
 
     def test_button_login(self, driver, wait):
+        faker = Faker()
+
         driver.get(self.BASE_URL)
-        login_button = driver.find_element(By.CSS_SELECTOR, ".global_action_link[href*='login']")
-        assert login_button.is_displayed(), "Кнопки входа нет"
 
+        # Находим кнопку страницы авторизации и жмем ее
+        login_button = wait.until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, ".global_action_link[href*='login']")
+        ))
         login_button.click()
-        current_url = driver.current_url
-        assert "login" in current_url or "signin" in current_url, "Переход не произошел"
 
-        password_field = wait.until(
-            EC.presence_of_element_located((By.XPATH, "//*[contains(@type, 'password')]"))
+        wait.until(
+            lambda d: "login" in d.current_url or "signin" in d.current_url
         )
         print("Страница авторизации загружена")
 
-        username_field = driver.find_element(
-            By.CSS_SELECTOR,
-            ".login_featuretarget_ctn input[type='text']")
-        assert username_field.is_displayed(), "Поле ввода логина не найдено"
+        # Ищем поля для пароля и логина и вводим сгенерированные фейкером
+        password_field = wait.until(
+            EC.visibility_of_element_located(
+                (By.XPATH, "//*[contains(@type, 'password')]"))
+        )
+        password_field.send_keys(faker.password())
 
-        random_login, random_password = self._generate_random_login_password()
-        username_field.send_keys(random_login)
-        password_field.send_keys(random_password)
+        username_field = wait.until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, ".login_featuretarget_ctn input[type='text']")
+            )
+        )
+        username_field.send_keys(faker.user_name())
 
-        submit_btn = driver.find_element(
-            By.CSS_SELECTOR,
-            ".login_featuretarget_ctn button[type='submit']")
-
-        assert submit_btn.is_displayed(), "Кнопка авторизации невидна"
-
+        # Находим и жмем кнопку войти
+        submit_btn = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, ".login_featuretarget_ctn button[type='submit']")
+            )
+        )
         submit_btn.click()
 
-        # Проверка что кнопка блокируется (появляется элемент загрузки)
-        try:
-            WebDriverWait(driver,5).until_not(EC.element_to_be_clickable(submit_btn))
-            wait.until(EC.element_to_be_clickable(submit_btn))
-            print("Элемент загрузки появился и пропал, кнопка снова активна")
-        except TimeoutException:
-            print("Кнопка не заблокировалась или не разблокировалась после нажатия")
+        # Появление элемента загрузки
+        loader_element = (By.CSS_SELECTOR, "._1VLukpV8qjL4BULw7Zob_l.WYrJyNEVnjgAnMVZgvPeg")
+        wait.until(EC.presence_of_element_located(loader_element))
+        print("Элемент загрузки появился")
+        # Ждем исчезновения элемента загрузки
+        wait.until_not(EC.presence_of_element_located(loader_element))
+        print("Элемент загрузки исчез")
 
         # Проверка текста ошибки
         error_element = wait.until(EC.visibility_of_element_located((
